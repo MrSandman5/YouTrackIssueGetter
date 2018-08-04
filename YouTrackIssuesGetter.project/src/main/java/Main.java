@@ -5,6 +5,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import javax.net.ssl.HttpsURLConnection;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -18,8 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.google.common.net.HttpHeaders.USER_AGENT;
-
 class IdLexicComparator implements Comparator<String>{
 
     public int compare(String a, String b){
@@ -31,9 +30,9 @@ class IdLengthComparator implements Comparator<String>{
 
     public int compare(String a, String b){
 
-        if(a.length()> b.length())
+        if(a.length() > b.length())
             return 1;
-        else if(a.length()< b.length())
+        else if(a.length() < b.length())
             return -1;
         else
             return 0;
@@ -45,8 +44,8 @@ public class Main {
 
         try {
 
-            URL mainAddress = new URL("https://youtrack.jetbrains.net/rest/issue/byproject/KT?filter=");
-            sendGet(mainAddress);
+            URL mainAddress = new URL("https://youtrack.jetbrains.net/rest/issue/byproject/KT?filter=Bug+%23Open&max=100");
+            sendGet(mainAddress, "BugIssues");
 
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setValidating(true);
@@ -55,7 +54,6 @@ public class Main {
             DocumentBuilder docBuilder = factory.newDocumentBuilder();
             DefaultHandler dh = new DefaultHandler();
             docBuilder.setErrorHandler(dh);
-
             Document doc = docBuilder.parse("BugIssues.xml");
 
             PrintWriter pw = new PrintWriter("BugIssues.txt", "UTF-8");
@@ -72,7 +70,7 @@ public class Main {
                 NamedNodeMap atr=issue.getAttributes();
                 ids.put(atr.item(1).toString(), atr.item(0).toString());
             }
-            
+
             Comparator<String> idComp = new IdLengthComparator().thenComparing(new IdLexicComparator());
             Map<String, String> sortedIds = new TreeMap<>(idComp);
             sortedIds.putAll(ids);
@@ -90,17 +88,9 @@ public class Main {
         }
     }
 
-    private static void sendGet(URL mainAddress){
+    private static void sendGet(URL mainAddress, String fileName){
         try {
-            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-            System.out.println("Enter \'filter\' parameter");
-            String filter = br.readLine();
-            System.out.println("Enter \'max\' parameter");
-            String max = br.readLine();
-            br.close();
-
-            URL address = new URL(mainAddress + URLEncoder.encode(filter, "UTF-8") + "&max=" + max);
-            HttpURLConnection conn = (HttpURLConnection) address.openConnection();
+            HttpsURLConnection conn = (HttpsURLConnection) mainAddress.openConnection();
             conn.setRequestMethod("GET");
 
             BufferedReader in = new BufferedReader(
@@ -109,10 +99,10 @@ public class Main {
             StringBuilder result = new StringBuilder();
 
             while ((inputLine = in.readLine()) != null) {
-                result.append(inputLine);
+                result.append(inputLine + " ");
             }
             in.close();
-            PrintWriter pw = new PrintWriter("BugIssues.xml", "UTF-8");
+            PrintWriter pw = new PrintWriter(fileName + ".xml", "UTF-8");
             pw.print(result.toString());
             pw.close();
         } catch (ProtocolException e) {
