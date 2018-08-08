@@ -1,7 +1,4 @@
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -19,7 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-class IdLexicComparator implements Comparator<String>{
+/*class IdLexicComparator implements Comparator<String>{
 
     public int compare(String a, String b){
 
@@ -37,7 +34,7 @@ class IdLengthComparator implements Comparator<String>{
         else
             return 0;
     }
-}
+}*/
 
 public class Main {
     public static void main(String[] args){
@@ -55,28 +52,41 @@ public class Main {
             DefaultHandler dh = new DefaultHandler();
             docBuilder.setErrorHandler(dh);
             Document doc = docBuilder.parse("BugIssues.xml");
+            doc.getDocumentElement().normalize();
 
             PrintWriter pw = new PrintWriter("BugIssues.txt", "UTF-8");
 
-            pw.println("List of issues:");
-            pw.println();
-
-            Node root = doc.getDocumentElement();
-            NodeList issues = root.getChildNodes();
+            NodeList issues = doc.getElementsByTagName("issue");
             int rootLength = issues.getLength();
-            Map<String, String> ids = new HashMap<>();
             for (int i=0; i<rootLength; i++) {
                 Node issue = issues.item(i);
-                NamedNodeMap atr=issue.getAttributes();
-                ids.put(atr.item(1).toString(), atr.item(0).toString());
+                pw.println("\nCurrent element : " + issue.getNodeName());
+                if (issue.getNodeType() == Node.ELEMENT_NODE) {
+                    Element eElement = (Element) issue;
+                    pw.println("id : " + eElement.getAttribute("id"));
+                    NodeList fields = eElement.getElementsByTagName("field");
+                    int fieldsCount = fields.getLength();
+                    for (int j=0; j<fieldsCount; j++){
+                        Node field = fields.item(j);
+                        if (field.getNodeType() == Node.ELEMENT_NODE) {
+                            Element elem = (Element) field;
+                            if (elem.getAttribute("xsi:type").equals("SingleField") && elem.getAttribute("name").equals("description")) {
+                                String code = elem.getElementsByTagName("value").item(0).getTextContent();
+                                pw.println("code : " + code);
+                            }
+                        }
+                    }
+                }
+                //NamedNodeMap atr=issue.getAttributes();
+                //ids.put(atr.item(1).toString(), atr.item(0).toString());
             }
 
-            Comparator<String> idComp = new IdLengthComparator().thenComparing(new IdLexicComparator());
+            /*Comparator<String> idComp = new IdLengthComparator().thenComparing(new IdLexicComparator());
             Map<String, String> sortedIds = new TreeMap<>(idComp);
             sortedIds.putAll(ids);
             for (Map.Entry<String, String> elem : sortedIds.entrySet()) {
                 pw.println(elem.getKey() + " " + elem.getValue());
-            }
+            }*/
             pw.close();
 
         } catch (ParserConfigurationException e) {
@@ -99,7 +109,7 @@ public class Main {
             StringBuilder result = new StringBuilder();
 
             while ((inputLine = in.readLine()) != null) {
-                result.append(inputLine + " ");
+                result.append(inputLine + " \n");
             }
             in.close();
             PrintWriter pw = new PrintWriter(fileName + ".xml", "UTF-8");
