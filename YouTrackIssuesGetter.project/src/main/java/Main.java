@@ -1,26 +1,89 @@
-import org.w3c.dom.*;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.*;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class Main {
+
     public static void main(String[] args){
+        int max = 5000, after = 0;
+
+        String restUri = "https://youtrack.jetbrains.net/rest/issue/byproject/KT?filter=Bug+%23Submitted&after=" + after + "&max=" + max;
+        Client client = Client.create();
+        WebResource webResource = client.resource(restUri);
+        ClientResponse response = webResource.accept("application/xml").get(ClientResponse.class);
+
+        String output = response.getEntity(String.class);
+        BufferedWriter bw;
+        try {
+            bw = new BufferedWriter
+                    (new OutputStreamWriter(new FileOutputStream("C:\\Users\\saf-s\\Desktop\\Work_and_projects\\YouTrackIssuesGetter.project\\BugIssues.xml")
+                            , StandardCharsets.UTF_8));
+            bw.write(output);
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         try {
-            URL mainAddress = new URL("https://youtrack.jetbrains.net/rest/issue/byproject/KT?filter=Bug+%23Open&max=100");
+            JAXBContext jaxbContext = JAXBContext.newInstance(Issues.class);
+            Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+
+            File XMLfile = new File("C:\\Users\\saf-s\\Desktop\\Work_and_projects\\YouTrackIssuesGetter.project\\BugIssues.xml");
+
+            Issues issues = (Issues) jaxbUnmarshaller.unmarshal(XMLfile);
+            Issues bugIssues = new Issues();
+            Field tmpField;
+            List<Field> fieldList;
+            Issue tmpIssue;
+            List<Issue> issueList = new ArrayList<>();
+            for (Issue issue : issues.getIssueList()){
+                tmpField = new Field();
+                fieldList = new ArrayList<>();
+                tmpIssue = new Issue();
+                String kotlinDesc = "";
+                for (Field field : issue.getFieldList()){
+
+                    String desc = field.getValue();
+                    if (desc.contains("```kotlin")){
+                        kotlinDesc = StringUtils.substringBetween(desc, "```kotlin", "```");
+                        tmpField.setName(field.getName());
+                        tmpField.setValue(kotlinDesc);
+                    }
+                }
+                if ("".equals(kotlinDesc)) continue;
+                fieldList.add(tmpField);
+                tmpIssue.setId(issue.getId());
+                tmpIssue.setEntityId(issue.getEntityId());
+                tmpIssue.setFieldList(fieldList);
+                issueList.add(tmpIssue);
+            }
+            bugIssues.setIssueList(issueList);
+
+            Marshaller jaxbmarshaller = jaxbContext.createMarshaller();
+            jaxbmarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+            File finalFile = new File("C:\\Users\\saf-s\\Desktop\\Work_and_projects\\YouTrackIssuesGetter.project\\Issues.xml");
+
+            jaxbmarshaller.marshal(bugIssues, finalFile);
+        } catch (JAXBException e) {
+            e.printStackTrace();
+        }
+
+
+
+        //WebTarget webTarget = client.target("https://youtrack.jetbrains.net/rest/issue/byproject/KT");
+            //WebTarget issueWebTarget = webTarget.path("?filter=Bug+%23Open");
+            //Invocation.Builder invocationBuilder = issueWebTarget.request(MediaType.APPLICATION_XML);
+            //Issues response = invocationBuilder.get(Issues.class);
+            /*try {
             sendGet(mainAddress, "BugIssues");
 
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -71,10 +134,10 @@ public class Main {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
-    private static void sendGet(URL mainAddress, String fileName){
+    /*private static void sendGet(URL mainAddress, String fileName){
         try {
             HttpsURLConnection conn = (HttpsURLConnection) mainAddress.openConnection();
             conn.setRequestMethod("GET");
@@ -96,5 +159,13 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
+    }*/
 }
+
+
+// Создаём класс Issue
+// Создаём 2 объекта класса: ID и field
+// ID - int, field - class
+// Class field: name и value
+// name - string, value - string
+// Найти библиотеку для парсинга XML
